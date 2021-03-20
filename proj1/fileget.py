@@ -3,10 +3,6 @@ import socket
 import os
 import re
 import sys
-
-from typing_extensions import final
-
-
 def downloadFile(file_name, fileserver_name, tcp_file_server_socket):
     try:
         tcp_file_server_socket.send(f"GET {file_name} FSP/1.0\r\nHostname: {fileserver_name}\r\nAgent: xkotou06\r\n\r\n".encode())
@@ -52,10 +48,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as nameserver_udp_socket:
         print("Nameserver not responding...", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(e)
+        print(e, file=sys.stderr)
         sys.exit(1)
 if nameserver_recieved == "ERR Syntax" or nameserver_recieved == "Err Not Found":
-    print(f"Nameserver error: {nameserver_recieved}")  # TODO error code
+    print(f"Nameserver error: {nameserver_recieved}", file=sys.stderr)  # TODO error code
     sys.exit(1)
 elif re.match(r"OK.*", nameserver_recieved):
     _, file_server_address = nameserver_recieved.split(" ")
@@ -76,7 +72,6 @@ elif re.match(r"OK.*", nameserver_recieved):
                         if not response:
                             break
                         files_to_download.extend(response.decode().split("\r\n"))  
-            print(files_to_download)
             for file in files_to_download:
                 if file != "":
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
@@ -86,7 +81,7 @@ elif re.match(r"OK.*", nameserver_recieved):
             print("Fileserver not responding...", file=sys.stderr)
             sys.exit(1)
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             sys.exit(1)  
     else:
         try:
@@ -97,5 +92,5 @@ elif re.match(r"OK.*", nameserver_recieved):
             print("Fileserver not responding...", file=sys.stderr)
             sys.exit(1)
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
             sys.exit(1)
