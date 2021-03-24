@@ -3,6 +3,9 @@ import socket
 import os
 import re
 import sys
+
+#download file 'file_name' from server 'fileserver_name' connected by tcp socket 'tcp_file_server_socket'
+#keep_dir_structure - true - file is downloaded to same directory as in file server, False - downloaded to script directory
 def downloadFile(file_name, fileserver_name, tcp_file_server_socket, keep_dir_structure):
     try:
         tcp_file_server_socket.send(f"GET {file_name} FSP/1.0\r\nHostname: {fileserver_name}\r\nAgent: xkotou06\r\n\r\n".encode())
@@ -12,9 +15,9 @@ def downloadFile(file_name, fileserver_name, tcp_file_server_socket, keep_dir_st
         if file_server_req_result == "FSP/1.0 Success":
             data = first_response_data
             if keep_dir_structure == True:
-                dest_path = file_name
+                dest_path = file_name #create file in same subdir as in file server
             else: 
-                dest_path =os.path.basename(file_name)
+                dest_path =os.path.basename(file_name) #create file in root (script directory)
             with open(dest_path , "wb") as dest_file:
                 while True:
                     dest_file.write(data)
@@ -34,11 +37,11 @@ args = parser.parse_args()
 if not (re.match(r"^([0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]+$", args.nameserver_ip) and re.match(r"^(FSP|fsp)://[a-zA-Z0-9_.\-]+/.+$", args.download_file_surl)):
     print("Arguments format error", file=sys.stderr)
     sys.exit(1)
-with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as nameserver_udp_socket:
+with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as nameserver_udp_socket: #create UDP socket
     nameserver_ip, nameserver_port = args.nameserver_ip.split(":")
-    fileserver_name = args.download_file_surl.split("/")[2]
+    fileserver_name = args.download_file_surl.split("/")[2] #format fsp://server - index 2 is server name
     try:
-        nameserver_udp_socket.sendto(f"WHEREIS {fileserver_name}".encode(), (nameserver_ip, int(nameserver_port)))
+        nameserver_udp_socket.sendto(f"WHEREIS {fileserver_name}".encode(), (nameserver_ip, int(nameserver_port))) #send request for file server ip
         nameserver_udp_socket.settimeout(5)
         nameserver_recieved = nameserver_udp_socket.recv(1024).decode()
     except socket.timeout:
@@ -47,43 +50,41 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as nameserver_udp_socket:
     except Exception as e:
         print(e, file=sys.stderr)
         sys.exit(1)
-if nameserver_recieved == "ERR Syntax" or nameserver_recieved == "Err Not Found":
-    print(f"Nameserver error: {nameserver_recieved}", file=sys.stderr)  # TODO error code
-    sys.exit(1)
-elif re.match(r"OK.*", nameserver_recieved):
-    _, file_server_address = nameserver_recieved.split(" ")
+if re.match(r"OK.*", nameserver_recieved):
+    _, file_server_address = nameserver_recieved.split(" ") #format OK ip- need only ip
     file_server_ip, file_server_port = file_server_address.split(":")
-    file_name = "/".join(args.download_file_surl.split("/")[3:])
-    if file_name == "*":
+    file_name = "/".join(args.download_file_surl.split("/")[3:]) #extract file path from fsp://server/file/path format
+    if file_name == "*": #download all files from server
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_file_server_socket:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_file_server_socket: #create tcp socket
                 tcp_file_server_socket.settimeout(5)
                 tcp_file_server_socket.connect((file_server_ip, int(file_server_port)))
                 tcp_file_server_socket.send(f"GET index FSP/1.0\r\nHostname: {fileserver_name}/test\r\nAgent: xkotou06\r\n\r\n".encode())
                 first_response= tcp_file_server_socket.recv(1024)
-                index_req_result = first_response.split(b"\r\n")[0].decode()  # request status from first response
+                index_req_result = first_response.split(b"\r\n")[0].decode()  #request status from first response
                 if index_req_result == "FSP/1.0 Success":
-                    files_to_download = first_response.decode().split("\r\n")[3:]
+                    files_to_download = first_response.decode().split("\r\n")[3:] #remove header from response
                     while True:
                         response = tcp_file_server_socket.recv(5000)
                         if not response:
                             break
-                        files_to_download.extend(response.decode().split("\r\n"))  
+                        files_to_download.extend(response.decode().split("\r\n"))  #create list of files to download from index
             for file in files_to_download:
                 if file != "":
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
                         newsock.connect((file_server_ip, int(file_server_port)))
-                        file_dir =os.path.dirname(file) 
-                        if file_dir != "" and not os.path.exists(file_dir): 
-                            os.makedirs(file_dir)
+                        file_dir =os.path.dirname(file) #path to directory of file 
+                        if file_dir != "": #if file is in subdir, create subdir structure to keep directory hierarchy from file server
+                            os.makedirs(file_dir, exist_ok = True)
                         downloadFile(file,fileserver_name,newsock, True)
         except socket.timeout:
             print("Fileserver not responding...", file=sys.stderr)
             sys.exit(1)
         except Exception as e:
+            print("Connection error\n")
             print(e, file=sys.stderr)
             sys.exit(1)  
-    else:
+    else: #download given file to root dir
         try:
              with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
                 newsock.connect((file_server_ip, int(file_server_port)))
@@ -94,3 +95,6 @@ elif re.match(r"OK.*", nameserver_recieved):
         except Exception as e:
             print(e, file=sys.stderr)
             sys.exit(1)
+else:
+    print(f"Nameserver error: {nameserver_recieved}", file=sys.stderr)
+    sys.exit(1)
