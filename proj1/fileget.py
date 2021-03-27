@@ -3,34 +3,40 @@ import socket
 import os
 import re
 import sys
-
 #download file 'file_name' from server 'fileserver_name' connected by tcp socket 'tcp_file_server_socket'
-#keep_dir_structure - true - file is downloaded to same directory as in file server, False - downloaded to script directory
-def downloadFile(file_name, fileserver_name, tcp_file_server_socket, keep_dir_structure):
+#return file data in bytes
+def downloadFileData(file_path, fileserver_name, tcp_file_server_socket):
     try:
-        tcp_file_server_socket.send(f"GET {file_name} FSP/1.0\r\nHostname: {fileserver_name}\r\nAgent: xkotou06\r\n\r\n".encode())
+        tcp_file_server_socket.send(f"GET {file_path} FSP/1.0\r\nHostname: {fileserver_name}\r\nAgent: xkotou06\r\n\r\n".encode())
         first_response_splitted_lines = tcp_file_server_socket.recv(1024).split(b"\r\n")
         file_server_req_result = first_response_splitted_lines[0].decode()  # request status
         if file_server_req_result == "FSP/1.0 Success":
-            data = b"\r\n".join(first_response_splitted_lines[3:])  # get only data from first response
-            bytes_remaining = int(first_response_splitted_lines[1].decode().split(":")[1])
-            if keep_dir_structure == True:
-                dest_path = file_name #create file in same subdir as in file server
-            else: 
-                dest_path =os.path.basename(file_name) #create file in root (script directory)
-            with open(dest_path , "wb") as dest_file:   
-                while True:
-                    bytes_remaining = bytes_remaining  - len(data)
-                    dest_file.write(data)
-                    data = tcp_file_server_socket.recv(1024)
-                    if not data:
-                        break
+            first_recieved_data = b"\r\n".join(first_response_splitted_lines[3:])  # get only data from first response
+            bytes_remaining = int(first_response_splitted_lines[1].decode().split(":")[1]) - len(first_recieved_data)
+            file_data = first_recieved_data
+            while True:
+                recieved_data = tcp_file_server_socket.recv(1024)
+                if not recieved_data:
+                    break
+                file_data += recieved_data
+                bytes_remaining -= len(recieved_data)
             if bytes_remaining != 0:
                 raise ConnectionAbortedError("Connection aborted")
+            return file_data
         else:
             raise ConnectionError("Connection error in downloadFile")
     except:
         raise
+#save bytes to 'file_name! file
+#keep_dir_structure - true - file is downloaded to same directory as in file server, False - downloaded to script directory
+def saveBytesToFile(bytes, file_name, keep_dir_structure):
+    if keep_dir_structure == True:
+        dest_path = file_name #create file in same subdir as in file server
+    else: 
+        dest_path =os.path.basename(file_name) #create file in root (script directory)
+    with open(dest_path , "wb") as dest_file:
+        dest_file.write(bytes)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", help="Nameserver ip address", dest="nameserver_ip", required=True)
 parser.add_argument("-f", help="File to download SURL", dest="download_file_surl", required=True)
@@ -62,24 +68,18 @@ if re.match(r"OK.*", nameserver_recieved):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_file_server_socket: #create tcp socket
                 tcp_file_server_socket.settimeout(5)
                 tcp_file_server_socket.connect((file_server_ip, int(file_server_port)))
-                tcp_file_server_socket.send(f"GET index FSP/1.0\r\nHostname: {fileserver_name}/test\r\nAgent: xkotou06\r\n\r\n".encode())
-                first_response= tcp_file_server_socket.recv(1024)
-                index_req_result = first_response.split(b"\r\n")[0].decode()  #request status from first response
-                if index_req_result == "FSP/1.0 Success":
-                    files_to_download = first_response.decode().split("\r\n")[3:] #remove header from response
-                    while True:
-                        response = tcp_file_server_socket.recv(5000)
-                        if not response:
-                            break
-                        files_to_download.extend(response.decode().split("\r\n"))  #create list of files to download from index
+                server_index_data = downloadFileData("index", fileserver_name, tcp_file_server_socket)
+                files_to_download = server_index_data.decode().split("\r\n")  #create list of files to download from index
             for file in files_to_download:
                 if file != "":
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
                         newsock.connect((file_server_ip, int(file_server_port)))
+                        newsock.settimeout(5)
                         file_dir =os.path.dirname(file) #path to directory of file 
                         if file_dir != "": #if file is in subdir, create subdir structure to keep directory hierarchy from file server
                             os.makedirs(file_dir, exist_ok = True)
-                        downloadFile(file,fileserver_name,newsock, True)
+                        fileData = downloadFileData(file,fileserver_name,newsock)
+                        saveBytesToFile(fileData, file,True)
         except socket.timeout:
             print("Fileserver not responding...", file=sys.stderr)
             sys.exit(1)
@@ -95,7 +95,8 @@ if re.match(r"OK.*", nameserver_recieved):
              with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
                 newsock.settimeout(5)
                 newsock.connect((file_server_ip, int(file_server_port)))
-                downloadFile(file_name, fileserver_name, newsock, False)
+                fileData = downloadFileData(file_name, fileserver_name, newsock)
+                saveBytesToFile(fileData, file_name,True)
         except socket.timeout:
             print("Fileserver not responding...", file=sys.stderr)
             sys.exit(1)
