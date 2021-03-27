@@ -9,23 +9,26 @@ import sys
 def downloadFile(file_name, fileserver_name, tcp_file_server_socket, keep_dir_structure):
     try:
         tcp_file_server_socket.send(f"GET {file_name} FSP/1.0\r\nHostname: {fileserver_name}\r\nAgent: xkotou06\r\n\r\n".encode())
-        first_response = tcp_file_server_socket.recv(1024)
-        file_server_req_result = first_response.split(b"\r\n")[0].decode()  # request status from first response
-        first_response_data = b"\r\n".join(first_response.split(b"\r\n")[3:])  # remove header from first data response
+        first_response_splitted_lines = tcp_file_server_socket.recv(1024).split(b"\r\n")
+        file_server_req_result = first_response_splitted_lines[0].decode()  # request status
         if file_server_req_result == "FSP/1.0 Success":
-            data = first_response_data
+            data = b"\r\n".join(first_response_splitted_lines[3:])  # get only data from first response
+            bytes_remaining = int(first_response_splitted_lines[1].decode().split(":")[1])
             if keep_dir_structure == True:
                 dest_path = file_name #create file in same subdir as in file server
             else: 
                 dest_path =os.path.basename(file_name) #create file in root (script directory)
-            with open(dest_path , "wb") as dest_file:
+            with open(dest_path , "wb") as dest_file:   
                 while True:
+                    bytes_remaining = bytes_remaining  - len(data)
                     dest_file.write(data)
                     data = tcp_file_server_socket.recv(1024)
                     if not data:
                         break
+            if bytes_remaining != 0:
+                raise ConnectionAbortedError("Connection aborted")
         else:
-            raise ConnectionError(file_server_req_result + "\n" + first_response_data.decode())
+            raise ConnectionError("Connection error in downloadFile")
     except:
         raise
 parser = argparse.ArgumentParser()
@@ -80,6 +83,9 @@ if re.match(r"OK.*", nameserver_recieved):
         except socket.timeout:
             print("Fileserver not responding...", file=sys.stderr)
             sys.exit(1)
+        except ConnectionAbortedError as e:
+            print("Connection aborted")
+            sys.exit(1)
         except Exception as e:
             print("Connection error\n")
             print(e, file=sys.stderr)
@@ -87,10 +93,14 @@ if re.match(r"OK.*", nameserver_recieved):
     else: #download given file to root dir
         try:
              with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
+                newsock.settimeout(5)
                 newsock.connect((file_server_ip, int(file_server_port)))
                 downloadFile(file_name, fileserver_name, newsock, False)
         except socket.timeout:
             print("Fileserver not responding...", file=sys.stderr)
+            sys.exit(1)
+        except ConnectionAbortedError as e:
+            print("Connection aborted")
             sys.exit(1)
         except Exception as e:
             print(e, file=sys.stderr)
