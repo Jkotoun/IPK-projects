@@ -24,7 +24,7 @@ def downloadFileData(file_path, fileserver_name, tcp_file_server_socket):
                 raise ConnectionAbortedError("Connection aborted")
             return file_data
         else:
-            raise ConnectionError("Connection error in downloadFile")
+            raise ConnectionError(file_server_req_result + "\n" + first_response_data.decode())
     except:
         raise
 #save bytes to 'file_name! file
@@ -36,7 +36,6 @@ def saveBytesToFile(bytes, file_name, keep_dir_structure):
         dest_path =os.path.basename(file_name) #create file in root (script directory)
     with open(dest_path , "wb") as dest_file:
         dest_file.write(bytes)
-
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", help="Nameserver ip address", dest="nameserver_ip", required=True)
 parser.add_argument("-f", help="File to download SURL", dest="download_file_surl", required=True)
