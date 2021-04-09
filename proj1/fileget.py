@@ -78,8 +78,6 @@ if re.match(r"OK.*", nameserver_recieved):
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
                         newsock.connect((file_server_ip, int(file_server_port)))
                         newsock.settimeout(5)
-
-
                         fileData = downloadFileData(file,fileserver_name,newsock)
                         saveBytesToFile(fileData, file,True)
         except socket.timeout:
@@ -98,7 +96,7 @@ if re.match(r"OK.*", nameserver_recieved):
                 newsock.settimeout(5)
                 newsock.connect((file_server_ip, int(file_server_port)))
                 fileData = downloadFileData(file_name, fileserver_name, newsock)
-                saveBytesToFile(fileData, file_name,True)
+                saveBytesToFile(fileData, file_name,False)
         except socket.timeout:
             print("Fileserver not responding...", file=sys.stderr)
             sys.exit(1)
