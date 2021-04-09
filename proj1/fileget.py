@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import socket
 import os
@@ -24,13 +25,16 @@ def downloadFileData(file_path, fileserver_name, tcp_file_server_socket):
                 raise ConnectionAbortedError("Connection aborted")
             return file_data
         else:
-            raise ConnectionError(file_server_req_result + "\n" + first_response_data.decode())
+            raise ConnectionError(file_server_req_result + "\n" + first_recieved_data.decode())
     except:
         raise
 #save bytes to 'file_name! file
 #keep_dir_structure - true - file is downloaded to same directory as in file server, False - downloaded to script directory
 def saveBytesToFile(bytes, file_name, keep_dir_structure):
     if keep_dir_structure == True:
+        file_dir =os.path.dirname(file_name) #path to directory of file 
+        if file_dir != "": #if file is in subdir, create subdir structure to keep directory hierarchy from file server
+            os.makedirs(file_dir, exist_ok = True)
         dest_path = file_name #create file in same subdir as in file server
     else: 
         dest_path =os.path.basename(file_name) #create file in root (script directory)
@@ -74,9 +78,8 @@ if re.match(r"OK.*", nameserver_recieved):
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as newsock:
                         newsock.connect((file_server_ip, int(file_server_port)))
                         newsock.settimeout(5)
-                        file_dir =os.path.dirname(file) #path to directory of file 
-                        if file_dir != "": #if file is in subdir, create subdir structure to keep directory hierarchy from file server
-                            os.makedirs(file_dir, exist_ok = True)
+
+
                         fileData = downloadFileData(file,fileserver_name,newsock)
                         saveBytesToFile(fileData, file,True)
         except socket.timeout:
