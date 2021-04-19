@@ -167,7 +167,6 @@ namespace ipk_sniffer
 
             var rootCommand = new RootCommand
             {
-                new Option<string?>(new[] {"--interface", "-i"}, "Interface where packets should be sniffed"),
                 new Option<int?>("-p", getDefaultValue: () => null, description: "Specify port of packets to be displayed"),
                 new Option<bool>(new[] {"--tcp", "-t"}, description: "filter tcp packets"),
                 new Option<bool>(new[] {"--udp", "-u"}, description: "filter udp packets"),
@@ -175,6 +174,9 @@ namespace ipk_sniffer
                 new Option<bool>("--arp", description: "filter arp frames"),
                 new Option<int>("-n", getDefaultValue:() => 1, description: "number of packets to display")
             };
+            var interfaceOption = new Option<string>("--interface", "Interface where packets should be sniffed", arity: ArgumentArity.ZeroOrOne);
+            interfaceOption.AddAlias("-i");
+            rootCommand.AddOption(interfaceOption);
             //pass parsed arguments to SniffPacket
             rootCommand.Handler = CommandHandler.Create<string, int?, bool, bool, bool, bool, int>(SniffPackets);
             rootCommand.Invoke(args);
