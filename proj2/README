@@ -1,0 +1,14 @@
+Program packet-sniffer slouží k zachytávání packetů protokolů TCP, UDP, ICMP a ARP.
+Program lze přeložit pomocí přiloženého makefilu, případně pomocí dvojice příkazů dotnet build a dotnet run
+Příklady spuštění:
+./ipk-sniffer -i = vypíše seznam dostupných rozhraní
+./ipk-sniffer --interface rozhrani = vypíše 1 packet na rozhraní 'rozhrani'
+./ipk-sniffer --interface rozhrani -n 5 -p 80 --tcp --udp - vypíše 5 packetů na protokolu TCP nebo UDP a portu 80
+Kompletní možnosti spuštění lze zjistit pomocí ./ipk-sniffer --help
+Přepínač -p není možné použít, pokud jsou pro zachycení zvoleny pouze pakety na protokolu arp a icmp
+Seznam odevzdávaných souborů:
+README
+makefile
+manual.pdf
+ipk-sniffer/ipk-sniffer.csproj
+ipk-sniffer/Program.cs
