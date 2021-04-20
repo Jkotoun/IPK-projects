@@ -16,7 +16,7 @@ namespace ipk_sniffer
         /// </summary>
         /// <param name="arrivalTime">Datetime when packet was captured</param>
         /// <param name="sourceIpAddress">Ip address of source device</param>
-        /// <param name="sourcePort">Port of source device, can be null if its icmp or arp packet
+        /// <param name="sourcePort">Port of source device, can be null if its icmp or arp packet</param>
         /// <param name="destIpAddress">Ip address of destination</param>
         /// <param name="destPort">Port of destination, can be null if its icmp or arp packet</param>
         /// <param name="dataLength">Length of packet in bytes</param>
@@ -112,14 +112,9 @@ namespace ipk_sniffer
             deviceToSniff.Filter = "";
             if (!(tcp || udp || icmp || arp)) //none of these arguments = capture all
             {
-                if (p == null)
-                {
-                    deviceToSniff.Filter = "arp or icmp or tcp or udp";
-                }
-                else //specify port of captured packets
-                {
-                    deviceToSniff.Filter = $"arp or icmp or ((tcp or udp) and port {p})";
-                }
+                //filter port if -p option was selected
+                deviceToSniff.Filter =
+                    p == null ? "arp or icmp or tcp or udp" : $"arp or icmp or ((tcp or udp) and port {p})";
             }
             else //set filter by options combination
             {
