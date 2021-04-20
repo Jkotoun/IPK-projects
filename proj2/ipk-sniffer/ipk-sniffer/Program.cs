@@ -12,9 +12,15 @@ namespace ipk_sniffer
     class Program
     {
         /// <summary>
-        /// Created header string of packet from packet header info
+        /// Create header string of packet from packet header info
         /// </summary>
-        /// <returns>Packet header</returns>
+        /// <param name="arrivalTime">Datetime when packet was captured</param>
+        /// <param name="sourceIpAddress">Ip address of source device</param>
+        /// <param name="sourcePort">Port of source device, can be null if its icmp or arp packet
+        /// <param name="destIpAddress">Ip address of destination</param>
+        /// <param name="destPort">Port of destination, can be null if its icmp or arp packet</param>
+        /// <param name="dataLength">Length of packet in bytes</param>
+        /// <returns>Packet header string</returns>
         public static string PacketHeader(DateTime arrivalTime, IPAddress sourceIpAddress, int? sourcePort,
             IPAddress destIpAddress, int? destPort, int dataLength)
         {
@@ -50,6 +56,7 @@ namespace ipk_sniffer
             {
                 var ipPacket = packet.Extract<IPPacket>();
                 int? destPort = null, sourcePort = null;
+                //udp or tcp have ports
                 if (ipPacket.PayloadPacket is UdpPacket || ipPacket.PayloadPacket is TcpPacket)
                 {
                     destPort = ipPacket.PayloadPacket is UdpPacket ? ipPacket.Extract<UdpPacket>().DestinationPort : ipPacket.Extract<TcpPacket>().DestinationPort;
@@ -84,7 +91,8 @@ namespace ipk_sniffer
         public static void SniffPackets(string Interface, int? p, bool tcp, bool udp, bool icmp, bool arp, int n)
         {
             var devices = CaptureDeviceList.Instance;
-            if (Interface == "") //if interface is not entered, print list of all interfaces
+            //if interface is not entered, print list of all interfaces
+            if (Interface == "") 
             {
                 foreach (var device in devices)
                 {
@@ -92,12 +100,13 @@ namespace ipk_sniffer
                 }
                 return;
             }
-            if (devices.All(x => x.Name != Interface)) //none of interfaces matches argument
+            //none of interfaces match interface option = error
+            if (devices.All(x => x.Name != Interface)) 
             {
                 Console.Error.WriteLine("Given interface does not exist");
                 Environment.Exit(1);
             }
-
+            //select device by interface option
             var deviceToSniff = devices.Single(x => x.Name == Interface);
             deviceToSniff.Open();
             deviceToSniff.Filter = "";
@@ -124,7 +133,8 @@ namespace ipk_sniffer
                 }
                 if (p != null)
                 {
-                    if (deviceToSniff.Filter == "") //Tcp or Udp must be selected to capture to filter port
+                    //Tcp or Udp must be selected to capture to filter port
+                    if (deviceToSniff.Filter == "") 
                     {
                         Console.Error.WriteLine("icmp and arp have no port");
                         Environment.Exit(1);
@@ -145,13 +155,15 @@ namespace ipk_sniffer
 
             }
             var i = 0;
-            while (i < n) //capture only n packets
+            //capture only n packets
+            while (i < n) 
             {
                 var capture = deviceToSniff.GetNextPacket();
                 if (capture == null)
                 {
                     continue;
                 }
+                //support only ethernet frames
                 if (capture.LinkLayerType != LinkLayers.Ethernet)
                 {
                     continue;
@@ -164,7 +176,7 @@ namespace ipk_sniffer
 
         static void Main(string[] args)
         {
-
+            //definition of supported options
             var rootCommand = new RootCommand
             {
                 new Option<int?>("-p", getDefaultValue: () => null, description: "Specify port of packets to be displayed"),
@@ -174,6 +186,7 @@ namespace ipk_sniffer
                 new Option<bool>("--arp", description: "filter arp frames"),
                 new Option<int>("-n", getDefaultValue:() => 1, description: "number of packets to display")
             };
+            //interface option can have 1 or 0 arguments 
             var interfaceOption = new Option<string>("--interface", "Interface where packets should be sniffed", arity: ArgumentArity.ZeroOrOne);
             interfaceOption.AddAlias("-i");
             rootCommand.AddOption(interfaceOption);
