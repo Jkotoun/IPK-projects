@@ -108,7 +108,7 @@ namespace ipk_sniffer
             }
             //select device by interface option
             var deviceToSniff = devices.Single(x => x.Name == Interface);
-            deviceToSniff.Open();
+            deviceToSniff.Open(DeviceMode.Promiscuous);//promiscuous mode expected
             deviceToSniff.Filter = "";
             if (!(tcp || udp || icmp || arp)) //none of these arguments = capture all
             {
@@ -181,8 +181,8 @@ namespace ipk_sniffer
                 new Option<bool>("--arp", description: "filter arp frames"),
                 new Option<int>("-n", getDefaultValue:() => 1, description: "number of packets to display")
             };
-            //interface option can have 1 or 0 arguments 
-            var interfaceOption = new Option<string>("--interface", "Interface where packets should be sniffed", arity: ArgumentArity.ZeroOrOne);
+            //interface option can have 1 or 0 arguments , is required
+            var interfaceOption = new Option<string>("--interface", "Interface where packets should be sniffed", arity: ArgumentArity.ZeroOrOne){IsRequired = true};
             interfaceOption.AddAlias("-i");
             rootCommand.AddOption(interfaceOption);
             //pass parsed arguments to SniffPacket
