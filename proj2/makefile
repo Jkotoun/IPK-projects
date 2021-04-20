@@ -1,3 +1,3 @@
 All:
-	dotnet publish 
-	mv "ipk-sniffer/bin/Debug/netcoreapp3.1/ipk-sniffer" "."
+	cd src & dotnet publish -c Release -r linux-x64 /p:PublishSingleFile=true --self-contained false 
+	mv "src/bin/Release/netcoreapp3.1/linux/Publish/ipk-sniffer" "."
