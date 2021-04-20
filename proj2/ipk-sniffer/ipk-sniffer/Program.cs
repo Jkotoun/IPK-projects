@@ -64,7 +64,7 @@ namespace ipk_sniffer
                 }
                 formattedPacket = PacketHeader(arrivalTime, ipPacket.SourceAddress, sourcePort, ipPacket.DestinationAddress,
                     destPort, packet.TotalPacketLength);
-                formattedPacket += PacketDataHex(ipPacket.PrintHex());
+                formattedPacket += PacketDataHex(packet.PrintHex());
 
             }
             else if (packet.PayloadPacket is ArpPacket)
@@ -72,7 +72,7 @@ namespace ipk_sniffer
                 var arpPacket = packet.Extract<ArpPacket>();
                 formattedPacket = PacketHeader(arrivalTime, arpPacket.SenderProtocolAddress, null, arpPacket.TargetProtocolAddress, null,
                     packet.TotalPacketLength);//arp packet has no port - null
-                formattedPacket += PacketDataHex(arpPacket.PrintHex());
+                formattedPacket += PacketDataHex(packet.PrintHex());
             }
 
             Console.WriteLine($"{formattedPacket}\n"); //new line after packet to separate next packet data
