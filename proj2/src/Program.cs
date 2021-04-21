@@ -5,6 +5,7 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Globalization;
 using System.Net;
+using System.Net.NetworkInformation;
 using PacketDotNet;
 #nullable enable
 namespace ipk_sniffer
@@ -74,8 +75,13 @@ namespace ipk_sniffer
                 //inspired by https://stackoverflow.com/questions/13775037/mac-address-format-from-string/27043043, author: Jeremy
                 var senderMac = string.Join(":", arpPacket.SenderHardwareAddress.GetAddressBytes()
                                              .Select(x => x.ToString("X2"))).ToLower();
-                var broadcastMac = "ff:ff:ff:ff:ff:ff";
-                formattedPacket = PacketHeader(arrivalTime, senderMac, null, broadcastMac, null,
+                var targetMac = string.Join(":", arpPacket.TargetHardwareAddress.GetAddressBytes()
+                                             .Select(x => x.ToString("X2"))).ToLower();
+                if (targetMac == "00:00:00:00:00:00")
+                {
+                    targetMac = "ff:ff:ff:ff:ff:ff";
+                }
+                formattedPacket = PacketHeader(arrivalTime, senderMac, null, targetMac, null,
                     packet.Bytes.Length);//arp packet has no port - null
                 
                 formattedPacket += PacketDataHex(packet.PrintHex());
