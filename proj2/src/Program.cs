@@ -21,10 +21,11 @@ namespace ipk_sniffer
         /// <param name="destPort">Port of destination, can be null if its icmp or arp packet</param>
         /// <param name="dataLength">Length of packet in bytes</param>
         /// <returns>Packet header string</returns>
-        public static string PacketHeader(DateTime arrivalTime, IPAddress sourceIpAddress, int? sourcePort,
-            IPAddress destIpAddress, int? destPort, int dataLength)
+        public static string PacketHeader(DateTime arrivalTime, string sourceIpAddress, int? sourcePort,
+            string destIpAddress, int? destPort, int dataLength)
         {
             var header = "";
+            //used from https://sebnilsson.com/blog/c-datetime-to-rfc3339-iso-8601/
             header += arrivalTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo); //RFC3339 standard format
             header += $" {sourceIpAddress}";
             header += sourcePort == null ? "" : $" : {sourcePort}"; //icmp and arp have no port
@@ -62,16 +63,21 @@ namespace ipk_sniffer
                     destPort = ipPacket.PayloadPacket is UdpPacket ? ipPacket.Extract<UdpPacket>().DestinationPort : ipPacket.Extract<TcpPacket>().DestinationPort;
                     sourcePort = ipPacket.PayloadPacket is UdpPacket ? ipPacket.Extract<UdpPacket>().SourcePort : ipPacket.Extract<TcpPacket>().SourcePort;
                 }
-                formattedPacket = PacketHeader(arrivalTime, ipPacket.SourceAddress, sourcePort, ipPacket.DestinationAddress,
-                    destPort, packet.TotalPacketLength);
+                formattedPacket = PacketHeader(arrivalTime, ipPacket.SourceAddress.ToString(), sourcePort, ipPacket.DestinationAddress.ToString(),
+                    destPort, packet.Bytes.Length);
                 formattedPacket += PacketDataHex(packet.PrintHex());
 
             }
             else if (packet.PayloadPacket is ArpPacket)
             {
                 var arpPacket = packet.Extract<ArpPacket>();
-                formattedPacket = PacketHeader(arrivalTime, arpPacket.SenderProtocolAddress, null, arpPacket.TargetProtocolAddress, null,
-                    packet.TotalPacketLength);//arp packet has no port - null
+                //inspired by https://stackoverflow.com/questions/13775037/mac-address-format-from-string/27043043, author: Jeremy
+                var senderMac = string.Join(":", arpPacket.SenderHardwareAddress.GetAddressBytes()
+                                             .Select(x => x.ToString("X2"))).ToLower();
+                var broadcastMac = "ff:ff:ff:ff:ff:ff";
+                formattedPacket = PacketHeader(arrivalTime, senderMac, null, broadcastMac, null,
+                    packet.Bytes.Length);//arp packet has no port - null
+                
                 formattedPacket += PacketDataHex(packet.PrintHex());
             }
 
