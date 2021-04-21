@@ -47,7 +47,7 @@ namespace ipk_sniffer
         /// <summary>
         /// Print tcp, udp, icmp or arp packet in correct format to stdout
         /// </summary>
-        /// <param name="packet">Parsed ethernet frame to Packet data type</param>
+        /// <param name="packet">Parsed frame to Packet data type</param>
         /// <param name="arrivalTime">Packed captured time</param>
         public static void PrintPacket(Packet packet, DateTime arrivalTime)
         {
@@ -114,7 +114,7 @@ namespace ipk_sniffer
             {
                 //filter port if -p option was selected
                 deviceToSniff.Filter =
-                    p == null ? "arp or icmp or tcp or udp" : $"arp or icmp or ((tcp or udp) and port {p})";
+                    p == null ? "arp or icmp or icmp6 or tcp or udp" : $"arp or icmp or ((tcp or udp) and port {p})";
             }
             else //set filter by options combination
             {
@@ -141,7 +141,7 @@ namespace ipk_sniffer
                 }
                 if (icmp)
                 {
-                    deviceToSniff.Filter += deviceToSniff.Filter == "" ? "icmp" : " or icmp";
+                    deviceToSniff.Filter += deviceToSniff.Filter == "" ? "icmp or icmp6" : " or icmp or icmp6";
                 }
                 if (arp)
                 {
@@ -158,12 +158,7 @@ namespace ipk_sniffer
                 {
                     continue;
                 }
-                //support only ethernet frames
-                if (capture.LinkLayerType != LinkLayers.Ethernet)
-                {
-                    continue;
-                }
-                PrintPacket(Packet.ParsePacket(LinkLayers.Ethernet,capture.Data), capture.Timeval.Date);
+                PrintPacket(Packet.ParsePacket(capture.LinkLayerType,capture.Data), capture.Timeval.Date);
                 i++;
             }
             deviceToSniff.Close();
