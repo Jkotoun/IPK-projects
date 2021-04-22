@@ -191,7 +191,7 @@ namespace ipk_sniffer
                 new Option<int>("-n", getDefaultValue:() => 1, description: "number of packets to display")
             };
             //interface option can have 1 or 0 arguments , is required
-            var interfaceOption = new Option<string>("--interface", "Interface where packets should be sniffed", arity: ArgumentArity.ZeroOrOne){IsRequired = true};
+            var interfaceOption = new Option<string>("--interface", "Interface where packets should be sniffed", arity: ArgumentArity.ZeroOrOne);
             interfaceOption.AddAlias("-i");
             rootCommand.AddOption(interfaceOption);
             //pass parsed arguments to SniffPacket
