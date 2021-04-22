@@ -10,7 +10,7 @@ using PacketDotNet;
 #nullable enable
 namespace ipk_sniffer
 {
-    class Program
+    class Ipk_sniffer
     {
         /// <summary>
         /// Create header string of packet from packet header info
