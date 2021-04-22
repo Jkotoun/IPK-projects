@@ -47,6 +47,15 @@ namespace ipk_sniffer
             return string.Join("\n", data.Split("\n").Skip(3).Where(x => x.Length != 0).Select(x => "0x" + x[6..]));
         }
         /// <summary>
+        /// Returns mac address with bytes separated by :, inspired by https://stackoverflow.com/a/22372723, author: Lorenzo Santoro
+        /// </summary>
+        /// <param name="mac">mac address to format</param>
+        /// <returns>formatted mac address separated by :</returns>
+        public static string FormatMac(PhysicalAddress mac)
+        {
+            return string.Join(":", mac.GetAddressBytes().Select(x => x.ToString("X2"))).ToLower();
+        }
+        /// <summary>
         /// Print tcp, udp, icmp or arp packet in correct format to stdout
         /// </summary>
         /// <param name="packet">Parsed frame to Packet data type</param>
@@ -71,18 +80,10 @@ namespace ipk_sniffer
             }
             else if (packet.PayloadPacket is ArpPacket)
             {
-                var arpPacket = packet.Extract<ArpPacket>();
-                //inspired by https://stackoverflow.com/questions/13775037/mac-address-format-from-string/27043043, author: Jeremy
-                var senderMac = string.Join(":", arpPacket.SenderHardwareAddress.GetAddressBytes()
-                                             .Select(x => x.ToString("X2"))).ToLower();
-                var targetMac = string.Join(":", arpPacket.TargetHardwareAddress.GetAddressBytes()
-                                             .Select(x => x.ToString("X2"))).ToLower();
-                if (targetMac == "00:00:00:00:00:00")
-                {
-                    targetMac = "ff:ff:ff:ff:ff:ff";
-                }
-                formattedPacket = PacketHeader(arrivalTime, senderMac, null, targetMac, null,
-                    packet.Bytes.Length);//arp packet has no port - null
+                var destMac = FormatMac(packet.Extract<EthernetPacket>().DestinationHardwareAddress);
+                var senderMac = FormatMac(packet.Extract<EthernetPacket>().SourceHardwareAddress);
+                formattedPacket = PacketHeader(arrivalTime, senderMac, null, destMac, null,
+                    packet.Bytes.Length);//arpP packet has no port - null
                 
                 formattedPacket += PacketDataHex(packet.PrintHex());
             }
@@ -179,6 +180,7 @@ namespace ipk_sniffer
         static void Main(string[] args)
         {
             //definition of supported options
+            // inspired by https://github.com/dotnet/command-line-api/blob/main/docs/Your-first-app-with-System-CommandLine.md
             var rootCommand = new RootCommand
             {
                 new Option<int?>("-p", getDefaultValue: () => null, description: "Specify port of packets to be displayed"),
