@@ -45,8 +45,8 @@ namespace ipk_sniffer
         {
             var lines = data.Split("\n");
             //remove first 3 lines - header from print hex, filter only non empty lines, calculate offset in hexa (offset in printHex is wrong)
-            //and join offset with rest of string (without data:wrong_offset)
-            var linesEdited = lines.Skip(3).Where(x => x.Length != 0).Select((line, index) => "0x" + (index * 16).ToString("x4") + ":" + line[10..]);
+            //and join offset with rest of string (without data:wrong_offset and 2 spaces between hexa and ascii part of data instead of 3 spaces)
+            var linesEdited = lines.Skip(3).Where(x => x.Length != 0).Select((line, index) => "0x" + (index * 16).ToString("x4") + ":" + line[10..].Replace("   ", "  "));
             return string.Join("\n", linesEdited);
 
         }
