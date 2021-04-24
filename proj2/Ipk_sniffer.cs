@@ -22,15 +22,16 @@ namespace ipk_sniffer
         /// <param name="destPort">Port of destination, can be null if its icmp or arp packet</param>
         /// <param name="dataLength">Length of packet in bytes</param>
         /// <returns>Packet header string</returns>
-        public static string PacketHeader(DateTime arrivalTime, string sourceIpAddress, int? sourcePort,
-            string destIpAddress, int? destPort, int dataLength)
+        public static string PacketHeader(DateTime arrivalTimeUtc, string sourceAddress, int? sourcePort,
+            string destAddress, int? destPort, int dataLength)
         {
             var header = "";
-            //used from https://sebnilsson.com/blog/c-datetime-to-rfc3339-iso-8601/
-            header += arrivalTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo); //RFC3339 standard format
-            header += $" {sourceIpAddress}";
+            var localTime = TimeZoneInfo.ConvertTimeFromUtc(arrivalTimeUtc, TimeZoneInfo.Local);
+            //inspired by https://sebnilsson.com/blog/c-datetime-to-rfc3339-iso-8601/
+            header += localTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", DateTimeFormatInfo.InvariantInfo);//RFC3339 standard format
+            header += $" {sourceAddress}";
             header += sourcePort == null ? "" : $" : {sourcePort}"; //icmp and arp have no port
-            header += $" > {destIpAddress}";
+            header += $" > {destAddress}";
             header += destPort == null ? "" : $" : {destPort}";
             header += $", length {dataLength} bytes\n\n";
             return header;
@@ -63,8 +64,9 @@ namespace ipk_sniffer
         /// </summary>
         /// <param name="packet">Parsed frame to Packet data type</param>
         /// <param name="arrivalTime">Packed captured time</param>
-        public static void PrintPacket(Packet packet, DateTime arrivalTime)
+        public static void PrintPacket(RawCapture capture, DateTime arrivalTimeUtc)
         {
+            Packet packet = Packet.ParsePacket(capture.LinkLayerType, capture.Data);
             string formattedPacket = "";
             if (packet.PayloadPacket is IPPacket)
             {
@@ -76,8 +78,7 @@ namespace ipk_sniffer
                     destPort = ipPacket.PayloadPacket is UdpPacket ? ipPacket.Extract<UdpPacket>().DestinationPort : ipPacket.Extract<TcpPacket>().DestinationPort;
                     sourcePort = ipPacket.PayloadPacket is UdpPacket ? ipPacket.Extract<UdpPacket>().SourcePort : ipPacket.Extract<TcpPacket>().SourcePort;
                 }
-                formattedPacket = PacketHeader(arrivalTime, ipPacket.SourceAddress.ToString(), sourcePort, ipPacket.DestinationAddress.ToString(),
-                    destPort, packet.Bytes.Length);
+                formattedPacket = PacketHeader(arrivalTimeUtc, ipPacket.SourceAddress.ToString(), sourcePort, ipPacket.DestinationAddress.ToString(),destPort, capture.Data.Length);
                 formattedPacket += PacketDataHex(packet.PrintHex());
 
             }
@@ -85,9 +86,7 @@ namespace ipk_sniffer
             {
                 var destMac = FormatMac(packet.Extract<EthernetPacket>().DestinationHardwareAddress);
                 var senderMac = FormatMac(packet.Extract<EthernetPacket>().SourceHardwareAddress);
-                formattedPacket = PacketHeader(arrivalTime, senderMac, null, destMac, null,
-                    packet.Bytes.Length);//arpP packet has no port - null
-                
+                formattedPacket = PacketHeader(arrivalTimeUtc, senderMac, null, destMac, null, capture.Data.Length);//arp has no port - null
                 formattedPacket += PacketDataHex(packet.PrintHex());
             }
 
@@ -174,7 +173,7 @@ namespace ipk_sniffer
                 {
                     continue;
                 }
-                PrintPacket(Packet.ParsePacket(capture.LinkLayerType,capture.Data), capture.Timeval.Date);
+                PrintPacket(capture, capture.Timeval.Date);
                 i++;
             }
             deviceToSniff.Close();
